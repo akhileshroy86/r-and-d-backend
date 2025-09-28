@@ -1,31 +1,29 @@
 import { Controller, Get, Post, Body, Param, UseGuards } from '@nestjs/common';
-import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { DoctorsService } from './doctors.service';
+import { CreateDoctorDto } from './dto/create-doctor.dto';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { UserRole } from '@prisma/client';
 
 @Controller('doctors')
-@UseGuards(JwtAuthGuard)
 export class DoctorsController {
-  constructor(private doctorsService: DoctorsService) {}
+  constructor(private readonly doctorsService: DoctorsService) {}
 
   @Post()
-  async create(@Body() createDoctorDto: {
-    userId: string;
-    firstName: string;
-    lastName: string;
-    specialization: string;
-    licenseNumber: string;
-    phone: string;
-  }) {
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  create(@Body() createDoctorDto: CreateDoctorDto) {
     return this.doctorsService.create(createDoctorDto);
   }
 
   @Get()
-  async findAll() {
+  findAll() {
     return this.doctorsService.findAll();
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: string) {
+  findOne(@Param('id') id: string) {
     return this.doctorsService.findOne(id);
   }
 }

@@ -1,48 +1,45 @@
-import { Controller, Get, Post, Body, Param, Patch, UseGuards, Query } from '@nestjs/common';
-import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { Controller, Get, Post, Body, Param, Patch, Query, UseGuards } from '@nestjs/common';
 import { AppointmentsService } from './appointments.service';
-import { AppointmentStatus } from '@prisma/client';
+import { CreateAppointmentDto } from './dto/create-appointment.dto';
+import { UpdateAppointmentStatusDto } from './dto/update-appointment-status.dto';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { UserRole, AppointmentStatus } from '@prisma/client';
 
 @Controller('appointments')
 @UseGuards(JwtAuthGuard)
 export class AppointmentsController {
-  constructor(private appointmentsService: AppointmentsService) {}
+  constructor(private readonly appointmentsService: AppointmentsService) {}
 
   @Post()
-  async create(@Body() createAppointmentDto: {
-    patientId: string;
-    doctorId: string;
-    dateTime: string;
-    duration?: number;
-    notes?: string;
-  }) {
-    return this.appointmentsService.create({
-      ...createAppointmentDto,
-      dateTime: new Date(createAppointmentDto.dateTime),
-    });
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.STAFF, UserRole.PATIENT)
+  create(@Body() createAppointmentDto: CreateAppointmentDto) {
+    return this.appointmentsService.create(createAppointmentDto);
   }
 
   @Get()
-  async findAll(@Query('doctorId') doctorId?: string, @Query('patientId') patientId?: string) {
-    if (doctorId) {
-      return this.appointmentsService.findByDoctor(doctorId);
-    }
-    if (patientId) {
-      return this.appointmentsService.findByPatient(patientId);
-    }
-    return this.appointmentsService.findAll();
+  findAll(
+    @Query('status') status?: AppointmentStatus,
+    @Query('doctorId') doctorId?: string,
+    @Query('patientId') patientId?: string,
+  ) {
+    return this.appointmentsService.findAll(status, doctorId, patientId);
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: string) {
+  findOne(@Param('id') id: string) {
     return this.appointmentsService.findOne(id);
   }
 
   @Patch(':id/status')
-  async updateStatus(
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.STAFF)
+  updateStatus(
     @Param('id') id: string,
-    @Body() updateStatusDto: { status: AppointmentStatus }
+    @Body() updateStatusDto: UpdateAppointmentStatusDto,
   ) {
-    return this.appointmentsService.updateStatus(id, updateStatusDto.status);
+    return this.appointmentsService.updateStatus(id, updateStatusDto);
   }
 }

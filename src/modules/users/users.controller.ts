@@ -1,24 +1,30 @@
-import { Controller, Get, Post, Body, UseGuards } from '@nestjs/common';
-import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { Controller, Get, Post, Body, Param, UseGuards } from '@nestjs/common';
 import { UsersService } from './users.service';
+import { CreateUserDto } from '../../common/dto/create-user.dto';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '@prisma/client';
 
 @Controller('users')
 export class UsersController {
-  constructor(private usersService: UsersService) {}
+  constructor(private readonly usersService: UsersService) {}
 
   @Post()
-  async create(@Body() createUserDto: {
-    email: string;
-    password: string;
-    role: UserRole;
-  }) {
+  create(@Body() createUserDto: CreateUserDto) {
     return this.usersService.create(createUserDto);
   }
 
   @Get()
-  @UseGuards(JwtAuthGuard)
-  async findAll() {
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  findAll() {
     return this.usersService.findAll();
+  }
+
+  @Get(':id')
+  @UseGuards(JwtAuthGuard)
+  findOne(@Param('id') id: string) {
+    return this.usersService.findOne(id);
   }
 }

@@ -15,26 +15,101 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  doctor  Doctor?
-  patient Patient?
-  staff   Staff?
+  doctor      Doctor?
+  patient     Patient?
+  staff       Staff?
+  preferences UserPreferences?
 
   @@map("users")
 }
 
+model UserPreferences {
+  id            String @id @default(cuid())
+  userId        String @unique
+  language      String @default("en")
+  notifications Boolean @default(true)
+  
+  user User @relation(fields: [userId], references: [id])
+  
+  @@map("user_preferences")
+}
+
+model Hospital {
+  id          String   @id @default(cuid())
+  name        String
+  address     String
+  phone       String
+  email       String?
+  latitude    Float?
+  longitude   Float?
+  rating      Float    @default(0)
+  totalReviews Int     @default(0)
+  status      HospitalStatus @default(OPEN)
+  operatingHours Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  departments Department[]
+  doctors     Doctor[]
+  reviews     Review[]
+  
+  @@map("hospitals")
+}
+
+model Department {
+  id         String @id @default(cuid())
+  name       String
+  hospitalId String
+  description String?
+  
+  hospital Hospital @relation(fields: [hospitalId], references: [id])
+  doctors  Doctor[]
+  symptoms Symptom[]
+  
+  @@map("departments")
+}
+
 model Doctor {
-  id           String @id @default(cuid())
-  userId       String @unique
-  firstName    String
-  lastName     String
+  id             String @id @default(cuid())
+  userId         String @unique
+  hospitalId     String?
+  departmentId   String?
+  firstName      String
+  lastName       String
+  qualification  String
   specialization String
-  licenseNumber String @unique
-  phone        String
+  licenseNumber  String @unique
+  phone          String
+  experience     Int    @default(0)
+  consultationFee Float @default(0)
+  rating         Float  @default(0)
+  totalReviews   Int    @default(0)
   
   user         User @relation(fields: [userId], references: [id])
+  hospital     Hospital? @relation(fields: [hospitalId], references: [id])
+  department   Department? @relation(fields: [departmentId], references: [id])
   appointments Appointment[]
+  schedule     DoctorSchedule?
+  reviews      Review[]
+  queues       Queue[]
   
   @@map("doctors")
+}
+
+model DoctorSchedule {
+  id                String   @id @default(cuid())
+  doctorId          String   @unique
+  availableDays     String[] // ["MON", "TUE", "WED"]
+  startTime         String   // "09:00"
+  endTime           String   // "17:00"
+  lunchBreakStart   String?  // "13:00"
+  lunchBreakEnd     String?  // "14:00"
+  consultationDuration Int   @default(30) // minutes
+  maxPatientsPerDay Int     @default(20)
+  
+  doctor Doctor @relation(fields: [doctorId], references: [id])
+  
+  @@map("doctor_schedules")
 }
 
 model Patient {
@@ -43,11 +118,16 @@ model Patient {
   firstName   String
   lastName    String
   dateOfBirth DateTime
-  phone       String
+  phone       String   @unique
   address     String?
+  emergencyContact String?
+  bloodGroup  String?
+  allergies   String?
   
   user         User @relation(fields: [userId], references: [id])
   appointments Appointment[]
+  reviews      Review[]
+  queueEntries QueueEntry[]
   
   @@map("patients")
 }
@@ -70,16 +150,116 @@ model Appointment {
   patientId   String
   doctorId    String
   dateTime    DateTime
+  timeRange   String?           // "12:00-13:00"
   duration    Int               @default(30)
   status      AppointmentStatus @default(SCHEDULED)
   notes       String?
+  symptoms    String?
+  isWalkIn    Boolean           @default(false)
+  followUpDate DateTime?
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
   
   patient Patient @relation(fields: [patientId], references: [id])
   doctor  Doctor  @relation(fields: [doctorId], references: [id])
+  booking Booking?
   
   @@map("appointments")
+}
+
+model Booking {
+  id            String        @id @default(cuid())
+  appointmentId String        @unique
+  bookingId     String        @unique @default(cuid())
+  timeRange     String
+  status        BookingStatus @default(PENDING)
+  canRejoin     Boolean       @default(false)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  
+  appointment Appointment @relation(fields: [appointmentId], references: [id])
+  payment     Payment?
+  review      Review?
+  
+  @@map("bookings")
+}
+
+model Payment {
+  id                String        @id @default(cuid())
+  bookingId         String        @unique
+  amount            Float
+  currency          String        @default("INR")
+  status            PaymentStatus @default(PENDING)
+  method            PaymentMethod @default(ONLINE)
+  razorpayOrderId   String?       @unique
+  razorpayPaymentId String?
+  razorpaySignature String?
+  paidAt            DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  
+  booking Booking @relation(fields: [bookingId], references: [id])
+  
+  @@map("payments")
+}
+
+model Review {
+  id         String   @id @default(cuid())
+  patientId  String
+  doctorId   String?
+  hospitalId String?
+  bookingId  String?  @unique
+  rating     Int      // 1-5
+  comment    String?
+  isAnonymous Boolean @default(false)
+  createdAt  DateTime @default(now())
+  
+  patient  Patient   @relation(fields: [patientId], references: [id])
+  doctor   Doctor?   @relation(fields: [doctorId], references: [id])
+  hospital Hospital? @relation(fields: [hospitalId], references: [id])
+  booking  Booking?  @relation(fields: [bookingId], references: [id])
+  
+  @@map("reviews")
+}
+
+model Queue {
+  id              String @id @default(cuid())
+  doctorId        String
+  date            DateTime
+  currentPosition Int      @default(0)
+  estimatedWaitTime Int    @default(0) // minutes
+  
+  doctor  Doctor       @relation(fields: [doctorId], references: [id])
+  entries QueueEntry[]
+  
+  @@unique([doctorId, date])
+  @@map("queues")
+}
+
+model QueueEntry {
+  id        String   @id @default(cuid())
+  queueId   String
+  patientId String
+  position  Int
+  status    QueueStatus @default(WAITING)
+  joinedAt  DateTime @default(now())
+  calledAt  DateTime?
+  
+  queue   Queue   @relation(fields: [queueId], references: [id])
+  patient Patient @relation(fields: [patientId], references: [id])
+  
+  @@map("queue_entries")
+}
+
+model Symptom {
+  id           String   @id @default(cuid())
+  name         String
+  departmentId String
+  keywords     String[] // for AI matching
+  
+  department Department @relation(fields: [departmentId], references: [id])
+  
+  @@map("symptoms")
 }
 
 enum UserRole {
@@ -96,4 +276,37 @@ enum AppointmentStatus {
   COMPLETED
   CANCELLED
   NO_SHOW
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  ONLINE
+  OFFLINE
+  UPI
+}
+
+enum HospitalStatus {
+  OPEN
+  CLOSED
+  MAINTENANCE
+}
+
+enum QueueStatus {
+  WAITING
+  CALLED
+  IN_CONSULTATION
+  COMPLETED
+  CANCELLED
 }

@@ -1,27 +1,40 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../config/prisma.service';
+import { CreateStaffDto } from './dto/create-staff.dto';
+import { UserRole } from '@prisma/client';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class StaffService {
   constructor(private prisma: PrismaService) {}
 
-  async create(data: {
-    userId: string;
-    firstName: string;
-    lastName: string;
-    position: string;
-    phone: string;
-  }) {
-    return this.prisma.staff.create({
-      data,
-      include: {
-        user: {
-          select: {
-            id: true,
-            email: true,
-            role: true,
+  async create(createStaffDto: CreateStaffDto) {
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email: createStaffDto.email },
+    });
+
+    if (existingUser) {
+      throw new ConflictException('User with this email already exists');
+    }
+
+    const hashedPassword = await bcrypt.hash(createStaffDto.password, 10);
+
+    return this.prisma.user.create({
+      data: {
+        email: createStaffDto.email,
+        password: hashedPassword,
+        role: UserRole.STAFF,
+        staff: {
+          create: {
+            firstName: createStaffDto.firstName,
+            lastName: createStaffDto.lastName,
+            position: createStaffDto.position,
+            phone: createStaffDto.phone,
           },
         },
+      },
+      include: {
+        staff: true,
       },
     });
   }
@@ -41,7 +54,7 @@ export class StaffService {
   }
 
   async findOne(id: string) {
-    return this.prisma.staff.findUnique({
+    const staff = await this.prisma.staff.findUnique({
       where: { id },
       include: {
         user: {
@@ -53,5 +66,11 @@ export class StaffService {
         },
       },
     });
+
+    if (!staff) {
+      throw new NotFoundException('Staff member not found');
+    }
+
+    return staff;
   }
 }

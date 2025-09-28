@@ -1,33 +1,34 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../config/prisma.service';
-import { UserRole } from '@prisma/client';
+import { CreateUserDto } from '../../common/dto/create-user.dto';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UsersService {
   constructor(private prisma: PrismaService) {}
 
-  async findByEmail(email: string) {
-    return this.prisma.user.findUnique({
-      where: { email },
-      include: {
-        doctor: true,
-        patient: true,
-        staff: true,
-      },
+  async create(createUserDto: CreateUserDto) {
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email: createUserDto.email },
     });
-  }
 
-  async create(data: {
-    email: string;
-    password: string;
-    role: UserRole;
-  }) {
-    const hashedPassword = await bcrypt.hash(data.password, 10);
+    if (existingUser) {
+      throw new ConflictException('User with this email already exists');
+    }
+
+    const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
+
     return this.prisma.user.create({
       data: {
-        ...data,
+        ...createUserDto,
         password: hashedPassword,
+      },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        createdAt: true,
+        updatedAt: true,
       },
     });
   }
@@ -39,10 +40,33 @@ export class UsersService {
         email: true,
         role: true,
         createdAt: true,
-        doctor: true,
-        patient: true,
-        staff: true,
+        updatedAt: true,
       },
+    });
+  }
+
+  async findOne(id: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return user;
+  }
+
+  async findByEmail(email: string) {
+    return this.prisma.user.findUnique({
+      where: { email },
     });
   }
 }
