@@ -28,8 +28,8 @@ export class SearchService {
     
     if (query) {
       where.OR = [
-        { name: { contains: query, mode: 'insensitive' } },
-        { address: { contains: query, mode: 'insensitive' } },
+        { name: { contains: query } },
+        { address: { contains: query } },
       ];
     }
     
@@ -63,15 +63,30 @@ export class SearchService {
     const where: any = {};
     
     if (query) {
-      where.OR = [
-        { firstName: { contains: query, mode: 'insensitive' } },
-        { lastName: { contains: query, mode: 'insensitive' } },
-        { specialization: { contains: query, mode: 'insensitive' } },
-      ];
+      // First check if query matches any symptoms
+      const symptomBasedSearch = await this.searchBySymptoms(query);
+      
+      if (symptomBasedSearch.length > 0) {
+        // If symptoms found, search doctors in those departments
+        const departmentIds = symptomBasedSearch.map(s => s.departmentId);
+        where.OR = [
+          { firstName: { contains: query, mode: 'insensitive' } },
+          { lastName: { contains: query, mode: 'insensitive' } },
+          { specialization: { contains: query, mode: 'insensitive' } },
+          { departmentId: { in: departmentIds } },
+        ];
+      } else {
+        // Regular doctor search
+        where.OR = [
+          { firstName: { contains: query, mode: 'insensitive' } },
+          { lastName: { contains: query, mode: 'insensitive' } },
+          { specialization: { contains: query, mode: 'insensitive' } },
+        ];
+      }
     }
     
     if (department) {
-      where.department = {
+      where.departmentRef = {
         name: { contains: department, mode: 'insensitive' },
       };
     }
@@ -103,7 +118,7 @@ export class SearchService {
         hospital: {
           select: { name: true, address: true },
         },
-        department: {
+        departmentRef: {
           select: { name: true },
         },
         schedule: true,
@@ -111,48 +126,105 @@ export class SearchService {
     });
   }
 
+  private async searchBySymptoms(query: string) {
+    return this.prisma.symptom.findMany({
+      where: {
+        OR: [
+          { name: { contains: query, mode: 'insensitive' } },
+          { keywords: { hasSome: [query.toLowerCase()] } },
+        ],
+      },
+    });
+  }
+
   private async searchSymptoms(searchQuery: SearchQueryDto) {
     const { query } = searchQuery;
     
-    const where: any = {};
-    
-    if (query) {
-      where.OR = [
-        { name: { contains: query, mode: 'insensitive' } },
-        { keywords: { has: query } },
-      ];
+    if (!query) {
+      return [];
     }
 
-    return this.prisma.symptom.findMany({
-      where,
+    // Find symptoms that match the query
+    const matchingSymptoms = await this.prisma.symptom.findMany({
+      where: {
+        OR: [
+          { name: { contains: query, mode: 'insensitive' } },
+          { keywords: { hasSome: [query.toLowerCase()] } },
+        ],
+      },
       include: {
         department: {
           include: {
-            hospital: {
-              select: { name: true },
+            doctors: {
+              include: {
+                hospital: {
+                  select: { name: true, address: true },
+                },
+                schedule: true,
+              },
             },
           },
         },
       },
     });
+
+    // Extract doctors from matching departments
+    const doctors = [];
+    const seenDoctorIds = new Set();
+
+    for (const symptom of matchingSymptoms) {
+      for (const doctor of symptom.department.doctors) {
+        if (!seenDoctorIds.has(doctor.id)) {
+          seenDoctorIds.add(doctor.id);
+          doctors.push({
+            ...doctor,
+            departmentRef: { name: symptom.department.name },
+            matchedSymptom: symptom.name,
+          });
+        }
+      }
+    }
+
+    return {
+      symptoms: matchingSymptoms,
+      doctors: doctors,
+      message: doctors.length > 0 
+        ? `Found ${doctors.length} doctors for "${query}"` 
+        : `No doctors found for "${query}". Try searching for general symptoms like headache, fever, etc.`
+    };
   }
 
   private async searchAll(searchQuery: SearchQueryDto) {
-    const [hospitals, doctors, symptoms] = await Promise.all([
+    const [hospitals, doctors, symptomsResult] = await Promise.all([
       this.searchHospitals({ ...searchQuery, type: SearchType.HOSPITALS }),
       this.searchDoctors({ ...searchQuery, type: SearchType.DOCTORS }),
       this.searchSymptoms({ ...searchQuery, type: SearchType.SYMPTOMS }),
     ]);
 
+    // If searching by symptoms, prioritize symptom-based doctors
+    let finalDoctors = doctors;
+    let symptoms = [];
+    let message = undefined;
+
+    if (symptomsResult && typeof symptomsResult === 'object' && 'doctors' in symptomsResult) {
+      if (symptomsResult.doctors && symptomsResult.doctors.length > 0) {
+        finalDoctors = symptomsResult.doctors;
+      }
+      symptoms = symptomsResult.symptoms || [];
+      message = symptomsResult.message;
+    } else if (Array.isArray(symptomsResult)) {
+      symptoms = symptomsResult.slice(0, 10);
+    }
+
     return {
       hospitals: hospitals.slice(0, 10),
-      doctors: doctors.slice(0, 10),
-      symptoms: symptoms.slice(0, 10),
+      doctors: finalDoctors.slice(0, 10),
+      symptoms: symptoms,
+      message: message,
     };
   }
 
   async getPopularSearches() {
-    // This would typically come from analytics/search logs
     return [
       'Cardiology',
       'Orthopedics',
@@ -168,7 +240,7 @@ export class SearchService {
     const [hospitals, doctors, departments] = await Promise.all([
       this.prisma.hospital.findMany({
         where: {
-          name: { contains: query, mode: 'insensitive' },
+          name: { contains: query },
         },
         select: { name: true },
         take: 5,
@@ -176,9 +248,9 @@ export class SearchService {
       this.prisma.doctor.findMany({
         where: {
           OR: [
-            { firstName: { contains: query, mode: 'insensitive' } },
-            { lastName: { contains: query, mode: 'insensitive' } },
-            { specialization: { contains: query, mode: 'insensitive' } },
+            { firstName: { contains: query } },
+            { lastName: { contains: query } },
+            { specialization: { contains: query } },
           ],
         },
         select: { firstName: true, lastName: true, specialization: true },
@@ -186,7 +258,7 @@ export class SearchService {
       }),
       this.prisma.department.findMany({
         where: {
-          name: { contains: query, mode: 'insensitive' },
+          name: { contains: query },
         },
         select: { name: true },
         take: 5,

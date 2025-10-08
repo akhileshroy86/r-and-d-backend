@@ -1,22 +1,19 @@
-import { IsString, IsEmail, MinLength } from 'class-validator';
+import { IsString, IsEmail, IsOptional } from 'class-validator';
 
 export class CreateStaffDto {
+  @IsString()
+  fullName: string;
+
   @IsEmail()
   email: string;
 
   @IsString()
-  @MinLength(6)
-  password: string;
+  phoneNumber: string;
 
+  @IsOptional()
   @IsString()
-  firstName: string;
-
-  @IsString()
-  lastName: string;
+  password?: string;
 
   @IsString()
   position: string;
-
-  @IsString()
-  phone: string;
 }

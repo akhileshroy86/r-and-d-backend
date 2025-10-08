@@ -7,8 +7,14 @@ export class DoctorScheduleService {
   constructor(private prisma: PrismaService) {}
 
   async create(createScheduleDto: CreateScheduleDto) {
+    const { doctorId, ...scheduleData } = createScheduleDto;
     return this.prisma.doctorSchedule.create({
-      data: createScheduleDto,
+      data: {
+        ...scheduleData,
+        doctor: {
+          connect: { id: doctorId }
+        }
+      },
       include: {
         doctor: {
           select: { firstName: true, lastName: true },
@@ -29,9 +35,10 @@ export class DoctorScheduleService {
   }
 
   async update(doctorId: string, updateData: Partial<CreateScheduleDto>) {
+    const { doctorId: _, ...scheduleData } = updateData;
     return this.prisma.doctorSchedule.update({
       where: { doctorId },
-      data: updateData,
+      data: scheduleData,
     });
   }
 

@@ -1,25 +1,46 @@
-import { IsString, IsEmail, MinLength } from 'class-validator';
+import { IsString, IsNotEmpty, IsNumber, Min, Max, IsOptional } from 'class-validator';
 
 export class CreateDoctorDto {
-  @IsEmail()
-  email: string;
-
   @IsString()
-  @MinLength(6)
-  password: string;
-
-  @IsString()
+  @IsNotEmpty()
   firstName: string;
 
   @IsString()
+  @IsNotEmpty()
   lastName: string;
 
+  @IsOptional()
   @IsString()
+  name?: string;
+
+  @IsString()
+  @IsNotEmpty()
+  qualification: string;
+
+  @IsString()
+  @IsNotEmpty()
+  department: string;
+
+  @IsString()
+  @IsNotEmpty()
   specialization: string;
 
-  @IsString()
-  licenseNumber: string;
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(50)
+  experience?: number;
 
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  consultationFee?: number;
+
+  @IsOptional()
   @IsString()
-  phone: string;
+  departmentId?: string;
+
+  @IsOptional()
+  @IsString()
+  hospitalId?: string;
 }

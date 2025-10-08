@@ -23,6 +23,9 @@ import { RealtimeQueueModule } from './modules/realtime-queue/realtime-queue.mod
 import { SearchModule } from './modules/search/search.module';
 import { DoctorScheduleModule } from './modules/doctor-schedule/doctor-schedule.module';
 import { BookingsModule } from './modules/bookings/bookings.module';
+import { AdminAuthModule } from './modules/admin-auth/admin-auth.module';
+import { SymptomsModule } from './modules/symptoms/symptoms.module';
+
 
 @Module({
   imports: [
@@ -39,6 +42,8 @@ import { BookingsModule } from './modules/bookings/bookings.module';
     DoctorScheduleModule,
     AppointmentsModule,
     BookingsModule,
+    AdminAuthModule,
+    SymptomsModule,
     StaffModule,
     PaymentsModule,
     ReviewsModule,
@@ -52,5 +57,7 @@ import { BookingsModule } from './modules/bookings/bookings.module';
     SettingsModule,
     QueueModule,
   ],
+  controllers: [],
+  providers: [],
 })
 export class AppModule {}

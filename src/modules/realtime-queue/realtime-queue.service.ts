@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../config/prisma.service';
 import { JoinQueueDto } from './dto/join-queue.dto';
-import { QueueStatus } from '@prisma/client';
+import { UserRole, AppointmentStatus, BookingStatus, PaymentStatus, PaymentMethod, HospitalStatus, QueueStatus } from '../../common/constants/enums';
 
 @Injectable()
 export class RealtimeQueueService {
