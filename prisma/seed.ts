@@ -30,6 +30,7 @@ async function main() {
           firstName: 'John',
           lastName: 'Smith',
           specialization: 'Cardiology',
+          qualification: 'MD',
           licenseNumber: 'MD123456',
           phone: '+1234567890',
         },

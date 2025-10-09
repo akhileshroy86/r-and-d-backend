@@ -1,12 +1,12 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../config/prisma.service';
-import * as Razorpay from 'razorpay';
+const Razorpay = require('razorpay');
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { VerifyPaymentDto } from './dto/verify-payment.dto';
 
 @Injectable()
 export class PaymentsService {
-  private razorpay: Razorpay;
+  private razorpay: any;
 
   constructor(private prisma: PrismaService) {
     this.razorpay = new Razorpay({

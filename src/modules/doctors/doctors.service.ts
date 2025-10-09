@@ -37,6 +37,7 @@ export class DoctorsService {
             firstName: createDoctorDto.firstName,
             lastName: createDoctorDto.lastName,
             specialization: createDoctorDto.specialization,
+            qualification: createDoctorDto.qualification,
             licenseNumber: createDoctorDto.licenseNumber,
             phone: createDoctorDto.phone,
           },
