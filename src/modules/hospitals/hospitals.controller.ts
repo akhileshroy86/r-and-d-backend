@@ -4,7 +4,7 @@ import { CreateHospitalDto } from './dto/create-hospital.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
-import { UserRole } from '@prisma/client';
+import { UserRole, AppointmentStatus, BookingStatus, PaymentStatus, PaymentMethod, HospitalStatus, QueueStatus } from '../../common/constants/enums';
 
 @Controller('hospitals')
 export class HospitalsController {
@@ -18,8 +18,8 @@ export class HospitalsController {
   }
 
   @Get()
-  findAll() {
-    return this.hospitalsService.findAll();
+  findAll(@Query('city') city?: string) {
+    return this.hospitalsService.findAll(city);
   }
 
   @Get('nearby')

@@ -1,64 +1,78 @@
 import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../config/prisma.service';
+import { UsersService } from '../users/users.service';
 import { CreateDoctorDto } from './dto/create-doctor.dto';
-import { UserRole } from '@prisma/client';
-import * as bcrypt from 'bcrypt';
+import { UpdateDoctorDto } from './dto/update-doctor.dto';
+import { UserRole } from '../../common/constants/enums';
 
 @Injectable()
 export class DoctorsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private usersService: UsersService,
+  ) {}
 
   async create(createDoctorDto: CreateDoctorDto) {
-    const existingUser = await this.prisma.user.findUnique({
-      where: { email: createDoctorDto.email },
+    // Auto-generate name if not provided
+    const doctorName = `Dr. ${createDoctorDto.firstName} ${createDoctorDto.lastName}`;
+    
+    // Set default values
+    const doctorData = {
+      ...createDoctorDto,
+      name: doctorName,
+      department: createDoctorDto.specialization, // Use specialization as department
+      experience: createDoctorDto.experience || 0,
+      consultationFee: createDoctorDto.consultationFee || 0,
+    };
+
+    // Create user first
+    const user = await this.usersService.create({
+      email: `${createDoctorDto.firstName.toLowerCase()}.${createDoctorDto.lastName.toLowerCase()}@hospital.com`,
+      password: 'temp123',
+      role: UserRole.DOCTOR,
     });
 
-    if (existingUser) {
-      throw new ConflictException('User with this email already exists');
-    }
-
-    const existingLicense = await this.prisma.doctor.findUnique({
-      where: { licenseNumber: createDoctorDto.licenseNumber },
-    });
-
-    if (existingLicense) {
-      throw new ConflictException('Doctor with this license number already exists');
-    }
-
-    const hashedPassword = await bcrypt.hash(createDoctorDto.password, 10);
-
-    return this.prisma.user.create({
+    // Create doctor with default schedule
+    const doctor = await this.prisma.doctor.create({
       data: {
-        email: createDoctorDto.email,
-        password: hashedPassword,
-        role: UserRole.DOCTOR,
-        doctor: {
+        userId: user.id,
+        firstName: doctorData.firstName,
+        lastName: doctorData.lastName,
+        name: doctorData.name,
+        qualification: doctorData.qualification,
+        specialization: doctorData.specialization,
+        department: doctorData.department,
+        experience: doctorData.experience,
+        consultationFee: doctorData.consultationFee,
+        departmentId: doctorData.departmentId,
+        hospitalId: doctorData.hospitalId,
+        schedule: {
           create: {
-            firstName: createDoctorDto.firstName,
-            lastName: createDoctorDto.lastName,
-            specialization: createDoctorDto.specialization,
-            qualification: createDoctorDto.qualification,
-            licenseNumber: createDoctorDto.licenseNumber,
-            phone: createDoctorDto.phone,
+            availableDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+            startTime: '09:00',
+            endTime: '17:00',
+            lunchBreakStart: '13:00',
+            lunchBreakEnd: '14:00',
+            consultationDuration: 30,
+            maxPatientsPerDay: 20,
           },
         },
       },
       include: {
-        doctor: true,
+        schedule: true,
       },
     });
+
+    return {
+      message: 'Doctor created successfully',
+      doctor,
+    };
   }
 
   async findAll() {
     return this.prisma.doctor.findMany({
       include: {
-        user: {
-          select: {
-            id: true,
-            email: true,
-            role: true,
-          },
-        },
+        schedule: true,
       },
     });
   }
@@ -67,13 +81,7 @@ export class DoctorsService {
     const doctor = await this.prisma.doctor.findUnique({
       where: { id },
       include: {
-        user: {
-          select: {
-            id: true,
-            email: true,
-            role: true,
-          },
-        },
+        schedule: true,
       },
     });
 
@@ -82,5 +90,34 @@ export class DoctorsService {
     }
 
     return doctor;
+  }
+
+  async update(id: string, updateDoctorDto: UpdateDoctorDto) {
+    const doctor = await this.findOne(id);
+
+    const updatedDoctor = await this.prisma.doctor.update({
+      where: { id },
+      data: updateDoctorDto,
+      include: {
+        schedule: true,
+      },
+    });
+
+    return {
+      message: 'Doctor updated successfully',
+      doctor: updatedDoctor,
+    };
+  }
+
+  async remove(id: string) {
+    await this.findOne(id);
+    
+    await this.prisma.doctor.delete({
+      where: { id },
+    });
+
+    return {
+      message: 'Doctor deleted successfully',
+    };
   }
 }

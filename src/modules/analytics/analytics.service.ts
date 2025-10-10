@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../config/prisma.service';
-import { AppointmentStatus, UserRole, PaymentStatus } from '@prisma/client';
+import { UserRole, AppointmentStatus, BookingStatus, PaymentStatus, PaymentMethod, HospitalStatus, QueueStatus } from '../../common/constants/enums';
 
 @Injectable()
 export class AnalyticsService {

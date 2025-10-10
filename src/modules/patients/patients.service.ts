@@ -1,7 +1,7 @@
 import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../config/prisma.service';
 import { CreatePatientDto } from './dto/create-patient.dto';
-import { UserRole } from '@prisma/client';
+import { UserRole, AppointmentStatus, BookingStatus, PaymentStatus, PaymentMethod, HospitalStatus, QueueStatus } from '../../common/constants/enums';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()

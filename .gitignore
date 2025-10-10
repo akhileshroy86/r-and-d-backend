@@ -43,3 +43,20 @@ lerna-debug.log*
 
 # Prisma
 /prisma/migrations/
+/prisma/dev.db
+/prisma/dev.db-journal
+
+# Test and debug files
+*.test.js
+test-*.js
+test-*.html
+check-*.js
+clear-*.js
+debug-*.js
+add-test-*.js
+
+# Uploads
+/uploads
+
+# Build files
+/build

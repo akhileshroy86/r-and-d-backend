@@ -2,7 +2,7 @@
 
 ## Base URL
 ```
-http://localhost:3000
+http://localhost:3002/api/v1
 ```
 
 ## Authentication
@@ -32,6 +32,29 @@ Login user and get JWT token
     "id": "user-id",
     "email": "user@example.com",
     "role": "PATIENT"
+  }
+}
+```
+
+### POST /auth/staff/login
+Staff login endpoint
+
+**Request:**
+```json
+{
+  "email": "staff@hospital.com",
+  "password": "staffpassword"
+}
+```
+
+**Response:**
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "user": {
+    "id": "user-id",
+    "email": "staff@hospital.com",
+    "role": "STAFF"
   }
 }
 ```
@@ -1200,6 +1223,45 @@ Get all staff with performance metrics
     "phone": "+1122334455"
   }
 ]
+```
+
+### POST /staff/:id/change-password
+Change staff password
+
+**Request:**
+```json
+{
+  "currentPassword": "oldpassword",
+  "newPassword": "newpassword123"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Password changed successfully"
+}
+```
+
+### GET /staff/profile/:userId
+Get staff profile by user ID
+
+**Response:**
+```json
+{
+  "id": "staff-id",
+  "userId": "user-id",
+  "fullName": "Alice Johnson",
+  "email": "alice@hospital.com",
+  "phone": "+1122334455",
+  "position": "Nurse",
+  "isActive": true,
+  "user": {
+    "id": "user-id",
+    "email": "alice@hospital.com",
+    "role": "STAFF"
+  }
+}
 ```
 
 ## 🔔 Notifications & Settings

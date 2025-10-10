@@ -1,4 +1,4 @@
-import { PrismaClient, UserRole, AppointmentStatus } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
@@ -12,11 +12,11 @@ async function main() {
     create: {
       email: 'admin@healthcare.com',
       password: adminPassword,
-      role: UserRole.ADMIN,
+      role: 'ADMIN',
     },
   });
 
-  // Create sample doctor
+  // Create sample doctor user
   const doctorPassword = await bcrypt.hash('doctor123', 10);
   const doctorUser = await prisma.user.upsert({
     where: { email: 'dr.smith@healthcare.com' },
@@ -24,17 +24,7 @@ async function main() {
     create: {
       email: 'dr.smith@healthcare.com',
       password: doctorPassword,
-      role: UserRole.DOCTOR,
-      doctor: {
-        create: {
-          firstName: 'John',
-          lastName: 'Smith',
-          specialization: 'Cardiology',
-          qualification: 'MD',
-          licenseNumber: 'MD123456',
-          phone: '+1234567890',
-        },
-      },
+      role: 'DOCTOR',
     },
   });
 
@@ -46,7 +36,7 @@ async function main() {
     create: {
       email: 'patient@example.com',
       password: patientPassword,
-      role: UserRole.PATIENT,
+      role: 'PATIENT',
       patient: {
         create: {
           firstName: 'Jane',
@@ -67,23 +57,68 @@ async function main() {
     create: {
       email: 'staff@healthcare.com',
       password: staffPassword,
-      role: UserRole.STAFF,
+      role: 'STAFF',
       staff: {
         create: {
-          firstName: 'Alice',
-          lastName: 'Johnson',
-          position: 'Nurse',
+          fullName: 'Alice Johnson',
+          email: 'staff@healthcare.com',
           phone: '+1122334455',
+          password: 'staff123',
+          position: 'Reception Staff',
         },
       },
     },
   });
 
+  // Create sample hospital
+  const hospital = await prisma.hospital.upsert({
+    where: { id: 'apollo-hyderabad' },
+    update: {},
+    create: {
+      id: 'apollo-hyderabad',
+      name: 'Apollo Hospitals Hyderabad',
+      address: 'Jubilee Hills, Hyderabad',
+      phone: '+91-40-23607777',
+      email: 'info@apollohyderabad.com',
+      rating: 4.5,
+      latitude: 17.4239,
+      longitude: 78.4738,
+    },
+  });
+
+  // Create department
+  const department = await prisma.department.upsert({
+    where: { id: 'cardiology-dept' },
+    update: {},
+    create: {
+      id: 'cardiology-dept',
+      name: 'Cardiology',
+      hospitalId: hospital.id,
+      description: 'Heart and cardiovascular diseases',
+    },
+  });
+
+  // Create doctor
+  await prisma.doctor.upsert({
+    where: { userId: doctorUser.id },
+    update: {},
+    create: {
+      userId: doctorUser.id,
+      firstName: 'John',
+      lastName: 'Smith',
+      name: 'Dr. John Smith',
+      specialization: 'Cardiology',
+      qualification: 'MD Cardiology',
+      department: 'Cardiology',
+      departmentId: department.id,
+      hospitalId: hospital.id,
+      experience: 10,
+      consultationFee: 500,
+      rating: 4.5,
+    },
+  });
+
   console.log('Seed data created successfully');
-  console.log('Admin:', admin);
-  console.log('Doctor User:', doctorUser);
-  console.log('Patient User:', patientUser);
-  console.log('Staff User:', staffUser);
 }
 
 main()

@@ -12,16 +12,17 @@ export class HospitalsService {
     });
   }
 
-  async findAll() {
+  async findAll(city?: string) {
+    const where = city ? { city: { equals: city, mode: 'insensitive' as any } } : {};
+    
     return this.prisma.hospital.findMany({
-      include: {
-        departments: true,
-        _count: {
-          select: {
-            doctors: true,
-            reviews: true,
-          },
-        },
+      where,
+      select: {
+        id: true,
+        name: true,
+        rating: true,
+        specialties: true,
+        status: true,
       },
     });
   }

@@ -1,5 +1,5 @@
 import { IsString, IsOptional, IsNumber, IsEnum } from 'class-validator';
-import { HospitalStatus } from '@prisma/client';
+import { HospitalStatus } from '../../../common/constants/enums';
 
 export class CreateHospitalDto {
   @IsString()

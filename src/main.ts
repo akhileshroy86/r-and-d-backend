@@ -7,23 +7,24 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
   
-  // Global validation pipe
+  // Global validation pipe - temporarily relaxed for debugging
   app.useGlobalPipes(new ValidationPipe({
-    whitelist: true,
-    forbidNonWhitelisted: true,
+    whitelist: false,
+    forbidNonWhitelisted: false,
     transform: true,
+    skipMissingProperties: true,
   }));
   
   // CORS configuration
   app.enableCors({
-    origin: ['http://localhost:3000', 'http://localhost:3001'],
-    credentials: true,
+    origin: '*',
+    credentials: false,
   });
   
-  // Global prefix
+  // Global API prefix
   app.setGlobalPrefix('api/v1');
   
-  const port = configService.get<number>('PORT') || 3000;
+  const port = configService.get<number>('PORT') || 3002;
   await app.listen(port);
   
   console.log(`Healthcare Management System API running on port ${port}`);

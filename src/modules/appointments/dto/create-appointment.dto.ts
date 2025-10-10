@@ -8,7 +8,10 @@ export class CreateAppointmentDto {
   doctorId: string;
 
   @IsDateString()
-  dateTime: string;
+  date: string;
+
+  @IsString()
+  timeRange: string;
 
   @IsOptional()
   @IsInt()
