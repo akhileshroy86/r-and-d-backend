@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Patch, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Patch, Query, HttpStatus, HttpException } from '@nestjs/common';
 import { AppointmentsService } from './appointments.service';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { UpdateAppointmentStatusDto } from './dto/update-appointment-status.dto';
@@ -42,7 +42,7 @@ export class AppointmentsController {
       
       // Map frontend fields to backend expected format
       const appointmentData = {
-        patientId: body.patientId || 'temp_patient_id', // Temporary for testing
+        patientId: body.patientId,
         doctorId: body.doctorId,
         date: body.date,
         timeRange: body.timeSlot || body.timeRange,
@@ -54,19 +54,26 @@ export class AppointmentsController {
       
       const result = await this.appointmentsService.create(appointmentData);
       
+      // Check if the result indicates failure
+      if (!result.success) {
+        throw new HttpException(result.error, HttpStatus.BAD_REQUEST);
+      }
+      
       console.log('=== APPOINTMENT CONTROLLER SUCCESS ===');
       return result;
     } catch (error) {
       console.error('=== APPOINTMENT CONTROLLER ERROR ===');
       console.error('Error type:', error.constructor.name);
       console.error('Error message:', error.message);
-      console.error('Error stack:', error.stack);
       
-      return {
-        success: false,
-        error: error.message,
-        details: 'Check server logs for more information'
-      };
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      
+      throw new HttpException(
+        error.message || 'Internal server error',
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
     }
   }
 

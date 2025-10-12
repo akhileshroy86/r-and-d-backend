@@ -74,4 +74,52 @@ export class PatientsService {
 
     return patient;
   }
+
+  async findByUserId(userId: string) {
+    return this.prisma.patient.findUnique({
+      where: { userId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            role: true,
+          },
+        },
+      },
+    });
+  }
+
+  async createFromExistingUser(patientData: any) {
+    console.log('Creating patient from existing user:', patientData.userId);
+    
+    // Verify user exists
+    const user = await this.prisma.user.findUnique({
+      where: { id: patientData.userId }
+    });
+    
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    
+    return this.prisma.patient.create({
+      data: {
+        userId: patientData.userId,
+        firstName: patientData.firstName,
+        lastName: patientData.lastName,
+        dateOfBirth: new Date(patientData.dateOfBirth),
+        phone: patientData.phone,
+        address: patientData.address,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            role: true,
+          },
+        },
+      },
+    });
+  }
 }

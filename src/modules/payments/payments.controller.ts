@@ -24,6 +24,11 @@ export class PaymentsController {
     return this.paymentsService.getPaymentByBooking(bookingId);
   }
 
+  @Get()
+  async getAllPayments() {
+    return this.paymentsService.getAllPayments();
+  }
+
   @Get('analytics')
   async getPaymentAnalytics() {
     return this.paymentsService.getPaymentAnalytics();

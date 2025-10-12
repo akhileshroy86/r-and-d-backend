@@ -79,6 +79,24 @@ export class PaymentsService {
     });
   }
 
+  async getAllPayments() {
+    return this.prisma.payment.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: {
+        booking: {
+          include: {
+            appointment: {
+              include: {
+                patient: true,
+                doctor: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
   async getPaymentAnalytics() {
     const [totalRevenue, todayRevenue, onlinePayments, offlinePayments] = await Promise.all([
       this.prisma.payment.aggregate({

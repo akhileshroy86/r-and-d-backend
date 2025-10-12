@@ -38,42 +38,71 @@ export class AppointmentsService {
       const duration = createAppointmentDto.duration || 30;
       console.log('Duration:', duration);
 
-      // Check if patient exists, create temp one if needed
+      // Check if patient exists - first try by patient ID, then by user ID
       let patient = await this.prisma.patient.findUnique({
         where: { id: createAppointmentDto.patientId }
       });
       
-      if (!patient && createAppointmentDto.patientId === 'temp_patient_id') {
-        console.log('Creating temporary patient for testing...');
-        
-        // Create temp user first
-        const tempUser = await this.prisma.user.create({
-          data: {
-            email: `temp_patient_${Date.now()}@test.com`,
-            password: 'temp123',
-            role: 'PATIENT',
-          },
+      // If not found by patient ID, try to find by user ID
+      if (!patient) {
+        patient = await this.prisma.patient.findUnique({
+          where: { userId: createAppointmentDto.patientId }
         });
-        
-        // Create temp patient
-        patient = await this.prisma.patient.create({
-          data: {
-            userId: tempUser.id,
-            firstName: 'Test',
-            lastName: 'Patient',
-            dateOfBirth: new Date('1990-01-01'),
-            phone: `+91${Date.now().toString().slice(-10)}`,
-            address: 'Test Address',
-          },
-        });
-        
-        // Update appointment data with real patient ID
-        createAppointmentDto.patientId = patient.id;
-        console.log('Temporary patient created:', patient.id);
       }
       
+      // If still not found, check if it's a user ID or mock ID and create patient record
       if (!patient) {
-        throw new Error(`Patient with ID ${createAppointmentDto.patientId} not found`);
+        // Check if it's a mock patient ID (starts with 'patient_')
+        if (createAppointmentDto.patientId.startsWith('patient_')) {
+          console.log('Creating patient for mock ID:', createAppointmentDto.patientId);
+          
+          // Create a temporary user first
+          const tempUser = await this.prisma.user.create({
+            data: {
+              email: `temp_${Date.now()}@example.com`,
+              password: 'temp123',
+              role: 'PATIENT',
+            },
+          });
+          
+          // Create patient record
+          patient = await this.prisma.patient.create({
+            data: {
+              userId: tempUser.id,
+              firstName: 'Mock',
+              lastName: 'Patient',
+              dateOfBirth: new Date('1990-01-01'),
+              phone: `+91${Date.now().toString().slice(-10)}`,
+              address: 'Mock Address'
+            }
+          });
+          console.log('Mock patient created:', patient.id);
+        } else {
+          // Check if it's a user ID
+          const user = await this.prisma.user.findUnique({
+            where: { id: createAppointmentDto.patientId }
+          });
+          
+          if (user && user.role === 'PATIENT') {
+            console.log('Creating patient record for existing user:', user.id);
+            patient = await this.prisma.patient.create({
+              data: {
+                userId: user.id,
+                firstName: 'Patient',
+                lastName: 'User',
+                dateOfBirth: new Date('1990-01-01'),
+                phone: `+91${Date.now().toString().slice(-10)}`,
+                address: 'Not provided'
+              }
+            });
+            console.log('Patient record created:', patient.id);
+          } else {
+            return {
+              success: false,
+              error: `Patient with ID ${createAppointmentDto.patientId} not found`
+            };
+          }
+        }
       }
       console.log('Patient found:', patient.firstName, patient.lastName);
 
@@ -88,9 +117,12 @@ export class AppointmentsService {
 
       // Create appointment
       console.log('Creating appointment in database...');
+      console.log('Using patient ID:', patient.id);
+      console.log('Using doctor ID:', createAppointmentDto.doctorId);
+      
       const appointment = await this.prisma.appointment.create({
         data: {
-          patientId: createAppointmentDto.patientId,
+          patientId: patient.id, // Use the actual patient ID, not the input
           doctorId: createAppointmentDto.doctorId,
           dateTime: appointmentDate,
           timeRange: createAppointmentDto.timeRange || 'Not specified',
@@ -128,6 +160,7 @@ export class AppointmentsService {
       
       return {
         success: true,
+        id: appointment.id,
         message: 'Appointment created successfully',
         appointment: {
           ...appointment,
