@@ -63,31 +63,16 @@ export class SearchService {
     const where: any = {};
     
     if (query) {
-      // First check if query matches any symptoms
-      const symptomBasedSearch = await this.searchBySymptoms(query);
-      
-      if (symptomBasedSearch.length > 0) {
-        // If symptoms found, search doctors in those departments
-        const departmentIds = symptomBasedSearch.map(s => s.departmentId);
-        where.OR = [
-          { firstName: { contains: query, mode: 'insensitive' } },
-          { lastName: { contains: query, mode: 'insensitive' } },
-          { specialization: { contains: query, mode: 'insensitive' } },
-          { departmentId: { in: departmentIds } },
-        ];
-      } else {
-        // Regular doctor search
-        where.OR = [
-          { firstName: { contains: query, mode: 'insensitive' } },
-          { lastName: { contains: query, mode: 'insensitive' } },
-          { specialization: { contains: query, mode: 'insensitive' } },
-        ];
-      }
+      where.OR = [
+        { firstName: { contains: query } },
+        { lastName: { contains: query } },
+        { specialization: { contains: query } },
+      ];
     }
     
     if (department) {
       where.departmentRef = {
-        name: { contains: department, mode: 'insensitive' },
+        name: { contains: department },
       };
     }
     
@@ -130,8 +115,8 @@ export class SearchService {
     return this.prisma.symptom.findMany({
       where: {
         OR: [
-          { name: { contains: query, mode: 'insensitive' } },
-          { keywords: { hasSome: [query.toLowerCase()] } },
+          { name: { contains: query } },
+          { keywords: { contains: query.toLowerCase() } },
         ],
       },
     });
@@ -144,53 +129,19 @@ export class SearchService {
       return [];
     }
 
-    // Find symptoms that match the query
     const matchingSymptoms = await this.prisma.symptom.findMany({
       where: {
         OR: [
-          { name: { contains: query, mode: 'insensitive' } },
-          { keywords: { hasSome: [query.toLowerCase()] } },
+          { name: { contains: query } },
+          { keywords: { contains: query.toLowerCase() } },
         ],
-      },
-      include: {
-        department: {
-          include: {
-            doctors: {
-              include: {
-                hospital: {
-                  select: { name: true, address: true },
-                },
-                schedule: true,
-              },
-            },
-          },
-        },
       },
     });
 
-    // Extract doctors from matching departments
-    const doctors = [];
-    const seenDoctorIds = new Set();
-
-    for (const symptom of matchingSymptoms) {
-      for (const doctor of symptom.department.doctors) {
-        if (!seenDoctorIds.has(doctor.id)) {
-          seenDoctorIds.add(doctor.id);
-          doctors.push({
-            ...doctor,
-            departmentRef: { name: symptom.department.name },
-            matchedSymptom: symptom.name,
-          });
-        }
-      }
-    }
-
     return {
       symptoms: matchingSymptoms,
-      doctors: doctors,
-      message: doctors.length > 0 
-        ? `Found ${doctors.length} doctors for "${query}"` 
-        : `No doctors found for "${query}". Try searching for general symptoms like headache, fever, etc.`
+      doctors: [],
+      message: `Found ${matchingSymptoms.length} symptoms for "${query}"`
     };
   }
 

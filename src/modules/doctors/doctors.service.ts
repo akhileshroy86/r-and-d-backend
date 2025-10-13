@@ -48,7 +48,7 @@ export class DoctorsService {
         hospitalId: doctorData.hospitalId,
         schedule: {
           create: {
-            availableDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+            availableDays: 'Monday,Tuesday,Wednesday,Thursday,Friday',
             startTime: '09:00',
             endTime: '17:00',
             lunchBreakStart: '13:00',

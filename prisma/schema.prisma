@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -25,7 +25,7 @@ model User {
   id          String           @id @default(cuid())
   email       String           @unique
   password    String
-  role        UserRole
+  role        String
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
   doctor      Doctor?
@@ -57,9 +57,9 @@ model Hospital {
   longitude      Float?
   rating         Float          @default(0)
   totalReviews   Int            @default(0)
-  status         HospitalStatus @default(OPEN)
-  operatingHours Json?
-  specialties    String[]       @default([])
+  status         String @default("OPEN")
+  operatingHours String?
+  specialties    String?
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
   departments    Department[]
@@ -110,7 +110,7 @@ model Doctor {
 model DoctorSchedule {
   id                   String   @id @default(cuid())
   doctorId             String   @unique
-  availableDays        String[]
+  availableDays        String
   startTime            String
   endTime              String
   lunchBreakStart      String?
@@ -162,7 +162,7 @@ model Appointment {
   dateTime     DateTime
   timeRange    String?
   duration     Int               @default(30)
-  status       AppointmentStatus @default(SCHEDULED)
+  status       String @default("SCHEDULED")
   notes        String?
   symptoms     String?
   isWalkIn     Boolean           @default(false)
@@ -181,7 +181,7 @@ model Booking {
   appointmentId String        @unique
   bookingId     String        @unique @default(cuid())
   timeRange     String
-  status        BookingStatus @default(PENDING)
+  status        String @default("PENDING")
   canRejoin     Boolean       @default(false)
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
@@ -197,8 +197,8 @@ model Payment {
   bookingId         String        @unique
   amount            Float
   currency          String        @default("INR")
-  status            PaymentStatus @default(PENDING)
-  method            PaymentMethod @default(ONLINE)
+  status            String @default("PENDING")
+  method            String @default("ONLINE")
   razorpayOrderId   String?       @unique
   razorpayPaymentId String?
   razorpaySignature String?
@@ -246,7 +246,7 @@ model QueueEntry {
   queueId   String
   patientId String
   position  Int
-  status    QueueStatus @default(WAITING)
+  status    String @default("WAITING")
   joinedAt  DateTime    @default(now())
   calledAt  DateTime?
   patient   Patient     @relation(fields: [patientId], references: [id])
@@ -259,57 +259,10 @@ model Symptom {
   id           String     @id @default(cuid())
   name         String
   departmentId String
-  keywords     String[]
+  keywords     String
   department   Department @relation(fields: [departmentId], references: [id])
 
   @@map("symptoms")
 }
 
-enum UserRole {
-  ADMIN
-  DOCTOR
-  PATIENT
-  STAFF
-}
 
-enum AppointmentStatus {
-  SCHEDULED
-  CONFIRMED
-  IN_PROGRESS
-  COMPLETED
-  CANCELLED
-  NO_SHOW
-}
-
-enum BookingStatus {
-  PENDING
-  CONFIRMED
-  CANCELLED
-}
-
-enum PaymentStatus {
-  PENDING
-  COMPLETED
-  FAILED
-  REFUNDED
-}
-
-enum PaymentMethod {
-  ONLINE
-  OFFLINE
-  UPI
-}
-
-enum HospitalStatus {
-  OPEN
-  CLOSED
-  MAINTENANCE
-}
-
-enum QueueStatus {
-  WAITING
-  CALLED
-  IN_CONSULTATION
-  COMPLETED
-  CANCELLED
-}

@@ -8,66 +8,38 @@ import * as bcrypt from 'bcrypt';
 export class StaffService {
   constructor(private prisma: PrismaService) {}
 
-  async create(createStaffDto: any) {
+  async create(data: any) {
     try {
-      console.log('=== STAFF CREATION START ===');
-      console.log('Input data:', JSON.stringify(createStaffDto, null, 2));
+      console.log('Creating staff with data:', data);
       
-      const password = createStaffDto.fullName.replace(/\s+/g, '').toLowerCase();
-      const hashedPassword = await bcrypt.hash(password, 10);
-      console.log('Password generated:', password);
-      
+      // Create user first
+      const hashedPassword = await bcrypt.hash(data.password, 10);
       const user = await this.prisma.user.create({
         data: {
-          email: createStaffDto.email,
+          email: data.email,
           password: hashedPassword,
-          role: UserRole.STAFF,
-        },
+          role: 'STAFF'
+        }
       });
       
-      console.log('User created with ID:', user.id);
-      
+      // Create staff record
       const staff = await this.prisma.staff.create({
         data: {
           userId: user.id,
-          fullName: createStaffDto.fullName,
-          email: createStaffDto.email,
-          phone: createStaffDto.phoneNumber,
-          password: password,
-          position: createStaffDto.position,
-          isActive: createStaffDto.isActive || true,
-        },
+          fullName: data.fullName,
+          email: data.email,
+          phone: data.phone,
+          password: data.password,
+          position: data.position,
+          isActive: true
+        }
       });
       
-      console.log('Staff created with ID:', staff.id);
-      
-      // Immediately verify the data was saved
-      const verifyUser = await this.prisma.user.findUnique({ where: { id: user.id } });
-      const verifyStaff = await this.prisma.staff.findUnique({ where: { id: staff.id } });
-      
-      console.log('Verification - User found:', !!verifyUser);
-      console.log('Verification - Staff found:', !!verifyStaff);
-      
-      // Count all records
-      const userCount = await this.prisma.user.count({ where: { role: 'STAFF' } });
-      const staffCount = await this.prisma.staff.count();
-      
-      console.log('Total STAFF users:', userCount);
-      console.log('Total staff records:', staffCount);
-      console.log('=== STAFF CREATION SUCCESS ===');
-      
-      return { 
-        message: 'Staff created successfully', 
-        user, 
-        staff, 
-        verification: { verifyUser: !!verifyUser, verifyStaff: !!verifyStaff },
-        counts: { userCount, staffCount }
-      };
+      console.log('Staff created successfully:', staff.id);
+      return { message: 'Staff created successfully', user, staff, password: data.password };
     } catch (error) {
-      console.error('=== STAFF CREATION ERROR ===');
-      console.error('Error:', error);
-      console.error('Error message:', error.message);
-      console.error('Error code:', error.code);
+      console.error('Staff creation failed:', error.message);
+      console.error('Full error:', error);
       throw error;
     }
   }
@@ -173,20 +145,7 @@ export class StaffService {
       });
       
       console.log('Staff updated successfully:', updatedStaff.id);
-      
-      // Verify the update by fetching the record again
-      const verifyStaff = await this.prisma.staff.findUnique({
-        where: { id },
-        include: { user: true }
-      });
-      
-      console.log('Verification - Updated staff data:', JSON.stringify(verifyStaff, null, 2));
-      
-      return { 
-        message: 'Staff updated successfully', 
-        staff: updatedStaff,
-        verification: verifyStaff
-      };
+      return { message: 'Staff updated successfully', staff: updatedStaff };
     } catch (error) {
       console.error('Error updating staff:', error);
       throw error;

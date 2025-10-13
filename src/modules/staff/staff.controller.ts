@@ -117,4 +117,109 @@ export class StaffController {
   async getProfile(@Param('userId') userId: string) {
     return this.staffService.findByUserId(userId);
   }
+
+  @Get('login-credentials/:email')
+  async getLoginCredentials(@Param('email') email: string) {
+    const staff = await this.prisma.staff.findFirst({
+      where: { email },
+      include: { user: true }
+    });
+    
+    if (!staff) {
+      return { error: 'Staff not found' };
+    }
+    
+    return {
+      email: staff.email,
+      password: staff.password,
+      fullName: staff.fullName,
+      position: staff.position,
+      phone: staff.phone,
+      isActive: staff.isActive,
+      userId: staff.userId
+    };
+  }
+
+  @Get('all-staff-credentials')
+  async getAllStaffCredentials() {
+    const allStaff = await this.prisma.staff.findMany({
+      include: { user: true }
+    });
+    
+    return allStaff.map(staff => ({
+      id: staff.id,
+      email: staff.email,
+      password: staff.password,
+      fullName: staff.fullName,
+      position: staff.position,
+      phone: staff.phone,
+      isActive: staff.isActive
+    }));
+  }
+
+  @Get('debug/database-check')
+  async debugDatabaseCheck() {
+    const users = await this.prisma.user.findMany({ where: { role: 'STAFF' } });
+    const staff = await this.prisma.staff.findMany({ include: { user: true } });
+    
+    return {
+      totalStaffUsers: users.length,
+      totalStaffRecords: staff.length,
+      staffUsers: users,
+      staffRecords: staff
+    };
+  }
+
+  @Post('test-create-and-login')
+  async testCreateAndLogin(@Body() body: any) {
+    try {
+      // Step 1: Create staff
+      const staffData = {
+        fullName: body.fullName || 'Test Staff',
+        email: body.email || `test${Date.now()}@hospital.com`,
+        phoneNumber: body.phone || '+1234567890',
+        position: body.position || 'Nurse',
+        isActive: true
+      };
+      
+      console.log('Creating staff:', staffData);
+      const createResult = await this.staffService.create(staffData);
+      
+      // Step 2: Get login credentials
+      const password = staffData.fullName.replace(/\s+/g, '').toLowerCase();
+      
+      // Step 3: Test login immediately
+      const loginResponse = await fetch('http://localhost:3002/api/v1/auth/staff/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: staffData.email,
+          password: password
+        })
+      });
+      
+      const loginResult = await loginResponse.json();
+      
+      return {
+        step1_creation: {
+          success: true,
+          staff: createResult.staff,
+          user: createResult.user
+        },
+        step2_credentials: {
+          email: staffData.email,
+          password: password
+        },
+        step3_login_test: {
+          success: loginResponse.ok,
+          result: loginResult
+        }
+      };
+    } catch (error) {
+      return {
+        error: error.message,
+        details: error
+      };
+    }
+  }
 }
