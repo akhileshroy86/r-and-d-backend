@@ -74,6 +74,27 @@ export class UsersService {
   async findByEmail(email: string) {
     return this.prisma.user.findUnique({
       where: { email },
+      include: {
+        patient: true
+      }
     });
+  }
+
+  async createPatientRecord(userId: string, patientData: any) {
+    console.log('🏥 Creating patient record for user:', userId);
+    
+    const patient = await this.prisma.patient.create({
+      data: {
+        userId,
+        firstName: patientData.firstName,
+        lastName: patientData.lastName,
+        phone: patientData.phone,
+        dateOfBirth: new Date(patientData.dateOfBirth),
+        address: patientData.address
+      }
+    });
+    
+    console.log('✅ Patient record created:', patient.id);
+    return patient;
   }
 }

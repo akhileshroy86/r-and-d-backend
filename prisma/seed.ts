@@ -47,6 +47,9 @@ async function main() {
         },
       },
     },
+    include: {
+      patient: true,
+    },
   });
 
   // Create sample staff
@@ -99,7 +102,7 @@ async function main() {
   });
 
   // Create doctor
-  await prisma.doctor.upsert({
+  const doctor = await prisma.doctor.upsert({
     where: { userId: doctorUser.id },
     update: {},
     create: {
@@ -115,6 +118,43 @@ async function main() {
       experience: 10,
       consultationFee: 500,
       rating: 4.5,
+    },
+  });
+
+  // Create sample appointment and booking
+  const appointment = await prisma.appointment.upsert({
+    where: { id: 'sample-appointment-1' },
+    update: {},
+    create: {
+      id: 'sample-appointment-1',
+      patientId: patientUser.patient.id,
+      doctorId: doctor.id,
+      dateTime: new Date(),
+      timeRange: '10:00-11:00',
+      status: 'CONFIRMED',
+    },
+  });
+
+  const booking = await prisma.booking.upsert({
+    where: { appointmentId: appointment.id },
+    update: {},
+    create: {
+      appointmentId: appointment.id,
+      timeRange: '10:00-11:00',
+      status: 'CONFIRMED',
+    },
+  });
+
+  await prisma.payment.upsert({
+    where: { bookingId: booking.id },
+    update: {},
+    create: {
+      bookingId: booking.id,
+      amount: 500,
+      currency: 'INR',
+      status: 'COMPLETED',
+      method: 'ONLINE',
+      paidAt: new Date(),
     },
   });
 

@@ -6,7 +6,7 @@ import { SignInDto } from './dto/signin.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 
-@Controller('api/admin/auth')
+@Controller('admin/auth')
 export class AdminAuthController {
   constructor(private adminAuthService: AdminAuthService) {}
 
