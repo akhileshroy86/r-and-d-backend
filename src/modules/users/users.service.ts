@@ -97,4 +97,117 @@ export class UsersService {
     console.log('✅ Patient record created:', patient.id);
     return patient;
   }
+
+  async hashPassword(password: string): Promise<string> {
+    return bcrypt.hash(password, 10);
+  }
+
+  async updatePassword(userId: string, hashedPassword: string) {
+    console.log('🔐 Updating password for user:', userId);
+    const result = await this.prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedPassword }
+    });
+    console.log('✅ Password updated in user table');
+    return result;
+  }
+
+  async updatePasswordWithPlainText(userId: string, plainPassword: string) {
+    console.log('🔐 Updating password with plain text for user:', userId);
+    const hashedPassword = await bcrypt.hash(plainPassword, 10);
+    const result = await this.prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedPassword }
+    });
+    console.log('✅ Password hashed and updated in user table');
+    return result;
+  }
+
+  async findStaffByEmail(email: string) {
+    return this.prisma.staff.findFirst({
+      where: { email },
+      include: { user: true }
+    });
+  }
+
+  async getAllStaff() {
+    return this.prisma.staff.findMany({
+      include: { user: true }
+    });
+  }
+
+  async updateStaffPassword(staffId: string, plainPassword: string) {
+    return this.prisma.staff.update({
+      where: { id: staffId },
+      data: { password: plainPassword }
+    });
+  }
+
+  async findAllStaff() {
+    return this.prisma.staff.findMany({
+      include: { user: true }
+    });
+  }
+
+  async findStaffByEmailDirect(email: string) {
+    return this.prisma.staff.findFirst({
+      where: { email }
+    });
+  }
+
+  async updateStaffPasswordDirect(staffId: string, newPassword: string) {
+    console.log('🔐 Updating staff password for staff:', staffId);
+    const result = await this.prisma.staff.update({
+      where: { id: staffId },
+      data: { password: newPassword }
+    });
+    console.log('✅ Password updated in staff table');
+    return result;
+  }
+
+  async updateStaffPasswordComplete(email: string, newPassword: string) {
+    console.log('🔐 Complete staff password update for:', email);
+    
+    // Find staff record with user relation
+    const staff = await this.prisma.staff.findFirst({
+      where: { email },
+      include: { user: true }
+    });
+    
+    if (!staff) {
+      throw new NotFoundException('Staff not found');
+    }
+    
+    console.log('📝 Found staff:', staff.fullName, 'with userId:', staff.userId);
+    
+    // Update staff table with plain text password
+    await this.prisma.staff.update({
+      where: { id: staff.id },
+      data: { password: newPassword }
+    });
+    console.log('✅ Staff table updated with new password');
+    
+    // Update user table with hashed password
+    const hashedPassword = await this.hashPassword(newPassword);
+    await this.prisma.user.update({
+      where: { id: staff.userId },
+      data: { password: hashedPassword }
+    });
+    console.log('✅ User table updated with hashed password');
+    
+    // Verify the update
+    const updatedStaff = await this.prisma.staff.findFirst({
+      where: { email },
+      include: { user: true }
+    });
+    
+    console.log('🔍 Verification - Staff password:', updatedStaff.password);
+    console.log('🔍 Verification - User password hash:', updatedStaff.user.password.substring(0, 20) + '...');
+    
+    return { 
+      message: 'Staff password updated successfully in both tables',
+      staffPassword: updatedStaff.password,
+      userPasswordHash: updatedStaff.user.password.substring(0, 20) + '...'
+    };
+  }
 }

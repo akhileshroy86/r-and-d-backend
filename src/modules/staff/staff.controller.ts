@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Put, Body, Param, UseGuards } from '@nestjs/common';
 import { StaffService } from './staff.service';
 import { CreateStaffDto } from './dto/create-staff.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -108,14 +109,87 @@ export class StaffController {
   }
 
   @Post(':id/change-password')
-  async changePassword(@Param('id') id: string, @Body() body: any) {
-    const { currentPassword, newPassword } = body;
-    return this.staffService.changePassword(id, currentPassword, newPassword);
+  // @UseGuards(JwtAuthGuard)
+  async changePassword(@Param('id') id: string, @Body() changePasswordDto: ChangePasswordDto) {
+    console.log('\n🚨 FRONTEND PASSWORD CHANGE REQUEST DETECTED 🚨');
+    console.log('Endpoint: /staff/:id/change-password');
+    console.log('ID param:', id);
+    console.log('Body:', JSON.stringify(changePasswordDto, null, 2));
+    
+    try {
+      const result = await this.staffService.changePassword(id, changePasswordDto.currentPassword, changePasswordDto.newPassword);
+      console.log('✅ Success:', result);
+      return result;
+    } catch (error) {
+      console.log('❌ FAILED:', error.message);
+      return { success: false, message: error.message };
+    }
+  }
+
+  @Post('change-password-by-email')
+  // @UseGuards(JwtAuthGuard)
+  async changePasswordByEmail(@Body() body: any) {
+    console.log('🔍 Staff password change by email endpoint hit');
+    console.log('🔍 Request body:', body);
+    const { email, currentPassword, newPassword } = body;
+    
+    try {
+      return await this.staffService.changePasswordByEmail(email, currentPassword, newPassword);
+    } catch (error) {
+      console.log('❌ Email-based password change failed:', error.message);
+      return {
+        success: false,
+        message: error.message
+      };
+    }
+  }
+
+  @Post('change-password')
+  // @UseGuards(JwtAuthGuard) 
+  async changePasswordGeneric(@Body() body: any) {
+    console.log('🔍 Generic staff password change endpoint hit');
+    console.log('🔍 Request body:', body);
+    
+    const { id, email, staffId, currentPassword, newPassword } = body;
+    
+    // Try different approaches based on what's provided
+    try {
+      if (email) {
+        console.log('🔍 Using email approach...');
+        return await this.staffService.changePasswordByEmail(email, currentPassword, newPassword);
+      } else if (staffId) {
+        console.log('🔍 Using staffId approach...');
+        return await this.staffService.changePassword(staffId, currentPassword, newPassword);
+      } else if (id) {
+        console.log('🔍 Using id approach...');
+        return await this.staffService.changePassword(id, currentPassword, newPassword);
+      } else {
+        return {
+          success: false,
+          message: 'No valid identifier provided (email, id, or staffId required)'
+        };
+      }
+    } catch (error) {
+      console.log('❌ Generic password change failed:', error.message);
+      return {
+        success: false,
+        message: error.message
+      };
+    }
   }
 
   @Get('profile/:userId')
+  @UseGuards(JwtAuthGuard)
   async getProfile(@Param('userId') userId: string) {
     return this.staffService.findByUserId(userId);
+  }
+
+  @Get('my-profile')
+  @UseGuards(JwtAuthGuard)
+  async getMyProfile(@Body() body: any) {
+    // This would typically get user ID from JWT token
+    // For now, we'll expect it in the request
+    return this.staffService.findByUserId(body.userId);
   }
 
   @Get('login-credentials/:email')

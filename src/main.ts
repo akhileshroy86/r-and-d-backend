@@ -22,6 +22,18 @@ async function bootstrap() {
   });
   
   // Global API prefix
+  // Log all requests
+  app.use((req, res, next) => {
+    if (req.url.includes('change-password')) {
+      console.log('\n🔥 PASSWORD CHANGE REQUEST INTERCEPTED 🔥');
+      console.log('URL:', req.url);
+      console.log('Method:', req.method);
+      console.log('Body:', JSON.stringify(req.body, null, 2));
+      console.log('Headers:', req.headers);
+    }
+    next();
+  });
+  
   app.setGlobalPrefix('api/v1');
   
   const port = configService.get<number>('PORT') || 3002;

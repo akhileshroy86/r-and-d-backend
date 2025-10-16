@@ -12,22 +12,42 @@ export class StaffService {
     try {
       console.log('Creating staff with data:', data);
       
-      // Create user first
-      const hashedPassword = await bcrypt.hash(data.password, 10);
-      const user = await this.prisma.user.create({
-        data: {
-          email: data.email,
-          password: hashedPassword,
-          role: 'STAFF'
-        }
+      // Check if email already exists in users table
+      const existingUser = await this.prisma.user.findUnique({
+        where: { email: data.email }
       });
       
-      // Create staff record
+      let user;
+      if (existingUser) {
+        // If user exists, create a unique email for staff user record
+        const staffEmail = `staff_${Date.now()}_${data.email}`;
+        const hashedPassword = await bcrypt.hash(data.password, 10);
+        user = await this.prisma.user.create({
+          data: {
+            email: staffEmail,
+            password: hashedPassword,
+            role: 'STAFF'
+          }
+        });
+        console.log('Created unique user record for staff:', staffEmail);
+      } else {
+        // Create user with original email
+        const hashedPassword = await bcrypt.hash(data.password, 10);
+        user = await this.prisma.user.create({
+          data: {
+            email: data.email,
+            password: hashedPassword,
+            role: 'STAFF'
+          }
+        });
+      }
+      
+      // Create staff record with original email
       const staff = await this.prisma.staff.create({
         data: {
           userId: user.id,
           fullName: data.fullName,
-          email: data.email,
+          email: data.email, // Keep original email for staff login
           phone: data.phone,
           password: data.password,
           position: data.position,
@@ -153,36 +173,123 @@ export class StaffService {
   }
 
   async changePassword(staffId: string, currentPassword: string, newPassword: string) {
+    console.log('🔍 changePassword called with staffId:', staffId);
+    console.log('🔍 currentPassword:', currentPassword);
+    console.log('🔍 newPassword:', newPassword);
+    
     const staff = await this.prisma.staff.findUnique({
       where: { id: staffId },
       include: { user: true }
     });
 
-    if (!staff) {
-      throw new NotFoundException('Staff member not found');
+    console.log('🔍 Staff found:', !!staff);
+    if (staff) {
+      console.log('🔍 Staff details:', {
+        id: staff.id,
+        email: staff.email,
+        fullName: staff.fullName,
+        password: staff.password
+      });
     }
 
-    // Verify current password
-    const isCurrentPasswordValid = await bcrypt.compare(currentPassword, staff.user.password);
-    if (!isCurrentPasswordValid) {
+    if (!staff) {
+      console.log('❌ Staff not found with ID:', staffId);
+      
+      // Try to find by email in case staffId is actually an email
+      console.log('🔍 Trying to find by email...');
+      const staffByEmail = await this.prisma.staff.findFirst({
+        where: { email: staffId },
+        include: { user: true }
+      });
+      
+      if (staffByEmail) {
+        console.log('✅ Found staff by email instead:', staffByEmail.email);
+        // Recursively call with the correct ID
+        return this.changePassword(staffByEmail.id, currentPassword, newPassword);
+      }
+      
+      // Try to find by userId in case staffId is actually a userId
+      console.log('🔍 Trying to find by userId...');
+      const staffByUserId = await this.prisma.staff.findFirst({
+        where: { userId: staffId },
+        include: { user: true }
+      });
+      
+      if (staffByUserId) {
+        console.log('✅ Found staff by userId instead:', staffByUserId.email);
+        // Recursively call with the correct ID
+        return this.changePassword(staffByUserId.id, currentPassword, newPassword);
+      }
+      
+      console.log('❌ Staff not found with any identifier:', staffId);
+      throw new NotFoundException(`Staff member not found with identifier: ${staffId}`);
+    }
+
+    // Verify current password against the plain text password in staff table
+    if (staff.password !== currentPassword) {
       throw new ConflictException('Current password is incorrect');
     }
 
-    // Hash new password
-    const hashedNewPassword = await bcrypt.hash(newPassword, 10);
-
-    // Update password in both user and staff tables
-    await this.prisma.user.update({
-      where: { id: staff.userId },
-      data: { password: hashedNewPassword }
-    });
-
+    // Update staff table password
     await this.prisma.staff.update({
       where: { id: staffId },
-      data: { password: newPassword } // Store plain text in staff table for reference
+      data: { password: newPassword }
     });
 
+    // Create or update dedicated user record for this staff
+    const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+    const staffUserEmail = `staff_${staffId}_${staff.email}`;
+    
+    // Try to find existing dedicated user record
+    const existingStaffUser = await this.prisma.user.findUnique({
+      where: { email: staffUserEmail }
+    });
+
+    if (existingStaffUser) {
+      // Update existing dedicated user record
+      await this.prisma.user.update({
+        where: { email: staffUserEmail },
+        data: { password: hashedNewPassword }
+      });
+    } else {
+      // Create new dedicated user record
+      const newUser = await this.prisma.user.create({
+        data: {
+          email: staffUserEmail,
+          password: hashedNewPassword,
+          role: 'STAFF'
+        }
+      });
+      
+      // Update staff to point to new user record
+      await this.prisma.staff.update({
+        where: { id: staffId },
+        data: { userId: newUser.id }
+      });
+    }
+
+    console.log('✅ Password updated successfully for staff:', staff.email);
+    console.log('🔐 Staff table password updated');
+    console.log('🔐 Dedicated user record created/updated');
+
     return { message: 'Password changed successfully' };
+  }
+
+  async changePasswordByEmail(email: string, currentPassword: string, newPassword: string) {
+    console.log('🔍 changePasswordByEmail called with email:', email);
+    
+    const staff = await this.prisma.staff.findFirst({
+      where: { email },
+      include: { user: true }
+    });
+
+    if (!staff) {
+      console.log('❌ Staff not found with email:', email);
+      throw new NotFoundException('Staff member not found');
+    }
+
+    console.log('✅ Staff found:', staff.fullName);
+    return this.changePassword(staff.id, currentPassword, newPassword);
   }
 
   async findByUserId(userId: string) {
