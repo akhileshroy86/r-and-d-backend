@@ -116,7 +116,7 @@ export class SearchService {
       where: {
         OR: [
           { name: { contains: query } },
-          { keywords: { contains: query.toLowerCase() } },
+          { keywords: { has: query.toLowerCase() } },
         ],
       },
     });
@@ -133,7 +133,7 @@ export class SearchService {
       where: {
         OR: [
           { name: { contains: query } },
-          { keywords: { contains: query.toLowerCase() } },
+          { keywords: { has: query.toLowerCase() } },
         ],
       },
     });

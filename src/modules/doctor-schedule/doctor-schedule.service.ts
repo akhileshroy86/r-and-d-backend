@@ -11,7 +11,7 @@ export class DoctorScheduleService {
     return this.prisma.doctorSchedule.create({
       data: {
         ...scheduleData,
-        availableDays: scheduleData.availableDays ? scheduleData.availableDays.join(',') : '',
+        availableDays: Array.isArray(scheduleData.availableDays) ? scheduleData.availableDays : [scheduleData.availableDays || ''],
         doctor: {
           connect: { id: doctorId }
         }
@@ -41,7 +41,7 @@ export class DoctorScheduleService {
       where: { doctorId },
       data: {
         ...scheduleData,
-        availableDays: scheduleData.availableDays ? scheduleData.availableDays.join(',') : undefined,
+        availableDays: Array.isArray(scheduleData.availableDays) ? scheduleData.availableDays : [scheduleData.availableDays],
       },
     });
   }
@@ -51,7 +51,7 @@ export class DoctorScheduleService {
     if (!schedule) return [];
 
     const dayName = date.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase();
-    if (!schedule.availableDays.split(',').includes(dayName)) return [];
+    if (!(Array.isArray(schedule.availableDays) ? schedule.availableDays : []).includes(dayName)) return [];
 
     // Get existing appointments for the date
     const startOfDay = new Date(date);
@@ -139,7 +139,7 @@ export class DoctorScheduleService {
     if (!schedule) return false;
 
     const dayName = dateTime.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase();
-    if (!schedule.availableDays.split(',').includes(dayName)) return false;
+    if (!(Array.isArray(schedule.availableDays) ? schedule.availableDays : []).includes(dayName)) return false;
 
     const timeString = dateTime.toTimeString().slice(0, 5);
     const timeMinutes = this.timeToMinutes(timeString);

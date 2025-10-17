@@ -57,7 +57,7 @@ export class DepartmentsService {
     // Simple keyword matching - can be enhanced with AI
     const matches = departments.filter(dept => 
       dept.symptoms.some(symptom => 
-        symptom.keywords.split(',').some(keyword => 
+        (Array.isArray(symptom.keywords) ? symptom.keywords : []).some(keyword => 
           symptoms.some(userSymptom => 
             userSymptom.toLowerCase().includes(keyword.trim().toLowerCase())
           )
